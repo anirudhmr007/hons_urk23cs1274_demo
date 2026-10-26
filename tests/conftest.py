@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import os
+
+# Guarantee deterministic test execution independent of local daemons/credentials
+os.environ["MA_LLM_PROVIDER"] = "mock"
+os.environ["MA_LLM_MODEL"] = "mock-agent-model"
+
 import pytest
 
 from modular_agent.models.demo_model import DemoSentimentModel

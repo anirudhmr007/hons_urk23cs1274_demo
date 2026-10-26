@@ -54,9 +54,9 @@ class TestAgentEndpoints:
         data = resp.json()
         assert "response" in data
         assert data["tool_called"] is True
-        assert data["tool_name"] == "demo_sentiment_classifier"
+        assert data["tool_name"] in ("demo_sentiment_classifier", "real_sentiment_pipeline")
         assert "tool_output" in data
-        assert data["tool_output"]["label"] == "positive"
+        assert data["tool_output"].get("label") == "positive" or data["tool_output"].get("prediction") == "positive"
 
     def test_agent_trace_endpoint(self) -> None:
         client = TestClient(app)

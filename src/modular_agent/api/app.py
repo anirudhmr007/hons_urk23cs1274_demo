@@ -46,14 +46,40 @@ orchestrator = AgentOrchestrator(
 )
 ingestion_engine = IngestionEngine(registry)
 
-# Ingest demonstration model on startup
-ingestion_engine.ingest(
-    ModelConfig(
-        model_type="demo",
-        name="demo_sentiment_classifier",
-        description="Built-in demonstration binary sentiment classifier (TF-IDF + LogisticRegression).",
+from pathlib import Path
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+real_sentiment_file = project_root / "models" / "artifacts" / "real_sentiment_pipeline.joblib"
+real_risk_file = project_root / "models" / "artifacts" / "real_risk_classifier.joblib"
+
+if real_sentiment_file.exists():
+    ingestion_engine.ingest(
+        ModelConfig(
+            model_type="sklearn",
+            name="real_sentiment_pipeline",
+            description="Production scikit-learn TF-IDF + Logistic Regression text sentiment classifier.",
+            parameters={"model_path": str(real_sentiment_file)},
+        )
     )
-)
+
+if real_risk_file.exists():
+    ingestion_engine.ingest(
+        ModelConfig(
+            model_type="sklearn",
+            name="real_risk_classifier",
+            description="Production Random Forest classifier evaluating risk diagnostic metrics.",
+            parameters={"model_path": str(real_risk_file)},
+        )
+    )
+
+# Ingest demonstration model as fallback
+if not registry.has("demo_sentiment_classifier"):
+    ingestion_engine.ingest(
+        ModelConfig(
+            model_type="demo",
+            name="demo_sentiment_classifier",
+            description="Built-in demonstration binary sentiment classifier (TF-IDF + LogisticRegression).",
+        )
+    )
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
