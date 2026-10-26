@@ -173,27 +173,37 @@ def handle_agent_chat(
     if target_tool and not target_tool.startswith("🤖"):
         selected_tool = target_tool.split(" ")[0].strip()
 
-    result = orchestrator.run(
-        user_query=user_query,
-        session_id=sess,
-        target_tool=selected_tool,
-    )
+    try:
+        result = orchestrator.run(
+            user_query=user_query,
+            session_id=sess,
+            target_tool=selected_tool,
+        )
 
-    # Append user turn and assistant response in Gradio 6 message dictionary format
-    new_history.append({"role": "user", "content": user_query})
-    new_history.append({"role": "assistant", "content": result.response})
+        # Append user turn and assistant response in Gradio 6 message dictionary format
+        new_history.append({"role": "user", "content": user_query})
+        new_history.append({"role": "assistant", "content": result.response})
 
-    # Format structured tool callout
-    if result.tool_called:
-        tool_info = f"**Tool Invoked:** `{result.tool_name}`"
-        tool_in_json = json.dumps(result.tool_input, indent=2) if result.tool_input else "{}"
-        tool_out_json = json.dumps(result.tool_output, indent=2) if result.tool_output else "{}"
-    else:
-        tool_info = "No predictive tool was required for this query."
-        tool_in_json = "{}"
-        tool_out_json = "{}"
+        # Format structured tool callout
+        if result.tool_called:
+            tool_info = f"**Tool Invoked:** `{result.tool_name}`"
+            tool_in_json = json.dumps(result.tool_input, indent=2) if result.tool_input else "{}"
+            tool_out_json = json.dumps(result.tool_output, indent=2) if result.tool_output else "{}"
+        else:
+            tool_info = "No predictive tool was required for this query."
+            tool_in_json = "{}"
+            tool_out_json = "{}"
 
-    return new_history, tool_info, tool_in_json, tool_out_json
+        return new_history, tool_info, tool_in_json, tool_out_json
+    except Exception as exc:
+        err_msg = (
+            f"⚠️ **Execution Note:** {str(exc)}\n\n"
+            f"*Tip: If using Ollama, ensure your Ollama service is active (`ollama serve`). "
+            f"Or test hermetically with `$env:MA_LLM_PROVIDER='mock'`.*"
+        )
+        new_history.append({"role": "user", "content": user_query})
+        new_history.append({"role": "assistant", "content": err_msg})
+        return new_history, f"**Status:** {str(exc)}", "{}", "{}"
 
 
 def handle_reset_chat(session_id: str) -> Tuple[List[Any], str, str, str]:
