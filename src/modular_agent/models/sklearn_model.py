@@ -147,7 +147,22 @@ class SklearnModelAdapter(ModelAdapter):
             }
             return ModelContract(fields=fields)
 
-        # Default fallback input contract
+        # Auto-detect text pipeline if no explicit contract was provided
+        if self._estimator is not None and hasattr(self._estimator, "named_steps"):
+            for step_obj in self._estimator.named_steps.values():
+                class_name = type(step_obj).__name__.lower()
+                if "vectorizer" in class_name or "tfidf" in class_name or "count" in class_name:
+                    return ModelContract(
+                        fields={
+                            "text": FieldContract(
+                                type="str",
+                                required=True,
+                                description="Input text to classify.",
+                            )
+                        }
+                    )
+
+        # Default fallback input contract for numeric models
         return ModelContract(
             fields={
                 "features": FieldContract(
