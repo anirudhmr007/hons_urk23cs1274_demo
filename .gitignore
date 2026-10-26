@@ -1,0 +1,46 @@
+# ── Virtual environments ─────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Python bytecode / packaging ─────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Environment / secrets ───────────────────────────────
+.env
+
+# ── IDE ──────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS artifacts ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Model artifacts ──────────────────────────────────────
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.onnx
+models/artifacts/
+
+# ── Generated deployment packages ───────────────────────
+deployment_output/
+
+# ── Test / Coverage ──────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+
