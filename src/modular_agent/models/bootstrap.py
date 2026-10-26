@@ -8,16 +8,19 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from modular_agent.ingestion.engine import IngestionEngine, ModelConfig
-from modular_agent.models.registry import ToolRegistry
 from modular_agent.models.rest_api_model import default_fraud_evaluator
+
+if TYPE_CHECKING:
+    from modular_agent.models.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
 def bootstrap_default_models(registry: ToolRegistry) -> None:
     """Pre-ingest all available models into the given registry."""
+    from modular_agent.ingestion.engine import IngestionEngine, ModelConfig
     engine = IngestionEngine(registry)
     project_root = Path(__file__).resolve().parent.parent.parent.parent
 

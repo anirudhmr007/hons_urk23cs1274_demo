@@ -53,22 +53,38 @@ def _extract_fallback_arguments(tool_entry: ToolEntry, query: str) -> Dict[str, 
         else:
             args["features"] = [17.99, 10.38, 122.8, 1001.0]
 
-    # 3. Transaction / REST fields
-    if "amount" in schema_props:
-        amt_match = re.search(r"amount\s*(?:is|of|=|:)?\s*([\d.]+)", query, re.IGNORECASE)
-        args["amount"] = float(amt_match.group(1)) if amt_match else 15000.0
+    # 3. Dynamic named field extraction for any custom model (floats, ints, strings)
+    for field_name, prop in schema_props.items():
+        if field_name in args:
+            continue
+        field_type = prop.get("type", "string")
 
-    if "transaction_id" in schema_props:
-        tx_match = re.search(r"['\"]?(TX-[\w]+|[\w]+-\d+)['\"]?", query, re.IGNORECASE)
-        args["transaction_id"] = tx_match.group(1) if tx_match else "TX-8041"
-
-    if "user_country" in schema_props or "country" in schema_props:
-        c_match = re.search(r"(?:country|user_country)\s*(?:is|=|:)?\s*['\"]?([A-Za-z]{2})['\"]?", query, re.IGNORECASE)
-        country_code = c_match.group(1).upper() if c_match else "DE"
-        if "user_country" in schema_props:
-            args["user_country"] = country_code
-        if "country" in schema_props:
-            args["country"] = country_code
+        # Search for patterns like: "field_name is 2500", "field_name: 2500", "field_name=2500", "field_name 2500"
+        clean_field = field_name.replace("_", "[ _]")
+        pattern = rf"\b{clean_field}\b\s*(?:is|of|=|:)?\s*['\"]?([A-Za-z0-9_.-]+)['\"]?"
+        m = re.search(pattern, query, re.IGNORECASE)
+        if m:
+            val_str = m.group(1).strip(" '\"")
+            if field_type in ("integer", "int"):
+                try:
+                    args[field_name] = int(float(val_str))
+                except ValueError:
+                    args[field_name] = prop.get("default", 0)
+            elif field_type in ("number", "float"):
+                try:
+                    args[field_name] = float(val_str)
+                except ValueError:
+                    args[field_name] = prop.get("default", 0.0)
+            else:
+                args[field_name] = val_str
+        elif prop.get("default") is not None:
+            args[field_name] = prop.get("default")
+        elif field_type in ("integer", "int"):
+            args[field_name] = 1
+        elif field_type in ("number", "float"):
+            args[field_name] = 1.0
+        elif field_type in ("string", "str"):
+            args[field_name] = "default"
 
     return args
 

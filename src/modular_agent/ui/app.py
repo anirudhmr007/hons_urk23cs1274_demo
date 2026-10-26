@@ -319,6 +319,91 @@ def load_preset_rest():
     )
 
 
+def load_preset_house():
+    path = str(project_root / "models" / "artifacts" / "real_house_price_estimator.joblib")
+    contract = json.dumps({
+        "input": {
+            "sqft": {"type": "float", "required": True, "description": "Square footage of the property"},
+            "bedrooms": {"type": "int", "required": True, "description": "Number of bedrooms"},
+            "bathrooms": {"type": "float", "required": True, "description": "Number of bathrooms"},
+            "location_score": {"type": "float", "required": True, "description": "Neighborhood rating from 1.0 to 10.0"}
+        },
+        "output": {
+            "prediction": {"type": "float", "required": True, "description": "Estimated property value in USD"},
+            "model_type": {"type": "str", "required": True}
+        }
+    }, indent=2)
+    return (
+        "sklearn",
+        "house_price_estimator",
+        "Predicts real estate property valuation based on square footage, bedrooms, bathrooms, and location.",
+        path,
+        "",
+        "POST",
+        contract,
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(visible=False),
+    )
+
+
+def load_preset_loan():
+    path = str(project_root / "models" / "artifacts" / "real_loan_approval_predictor.joblib")
+    contract = json.dumps({
+        "input": {
+            "monthly_income": {"type": "float", "required": True, "description": "Applicant monthly income in USD"},
+            "credit_score": {"type": "int", "required": True, "description": "Credit score (300 to 850)"},
+            "loan_amount": {"type": "float", "required": True, "description": "Requested loan amount"},
+            "debt_to_income": {"type": "float", "required": True, "description": "Debt-to-income ratio (e.g. 0.25)"}
+        },
+        "output": {
+            "prediction": {"type": "int", "required": True, "description": "1 if approved, 0 if declined"},
+            "confidence": {"type": "float", "required": False, "description": "Model confidence probability"},
+            "model_type": {"type": "str", "required": True}
+        }
+    }, indent=2)
+    return (
+        "sklearn",
+        "loan_approval_predictor",
+        "Evaluates loan eligibility and credit default risk based on income, credit score, and debt.",
+        path,
+        "",
+        "POST",
+        contract,
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(visible=False),
+    )
+
+
+def load_preset_student():
+    path = str(project_root / "models" / "artifacts" / "real_student_performance_predictor.joblib")
+    contract = json.dumps({
+        "input": {
+            "study_hours": {"type": "float", "required": True, "description": "Weekly study hours"},
+            "attendance_rate": {"type": "float", "required": True, "description": "Class attendance percentage (0 to 100)"},
+            "previous_grade": {"type": "float", "required": True, "description": "Previous exam grade (0 to 100)"}
+        },
+        "output": {
+            "prediction": {"type": "int", "required": True, "description": "1 if student passes exam, 0 if fails"},
+            "confidence": {"type": "float", "required": False, "description": "Pass probability"},
+            "model_type": {"type": "str", "required": True}
+        }
+    }, indent=2)
+    return (
+        "sklearn",
+        "student_performance_predictor",
+        "Predicts student exam pass/fail outcome from study hours, attendance rate, and prior grades.",
+        path,
+        "",
+        "POST",
+        contract,
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(visible=False),
+    )
+
+
 # ── Gradio Layout Definition ─────────────────────────────────────────────────
 
 def build_app() -> gr.Blocks:
@@ -358,9 +443,13 @@ def build_app() -> gr.Blocks:
                 gr.Markdown("### Ingest a Predictive Model into the Tool Registry")
                 gr.Markdown("#### ⚡ Quick Ingest Presets (Click to Auto-Populate & Inspect Contracts)")
                 with gr.Row():
-                    btn_preset_sentiment = gr.Button("⚡ Preset: Real Sentiment Pipeline (.joblib)", variant="secondary")
-                    btn_preset_risk = gr.Button("⚡ Preset: Real Risk Classifier (.joblib)", variant="secondary")
-                    btn_preset_rest = gr.Button("⚡ Preset: Real Remote REST API (Fraud)", variant="secondary")
+                    btn_preset_house = gr.Button("🏡 House Price Estimator (.joblib)", variant="secondary")
+                    btn_preset_loan = gr.Button("💳 Loan Approval Predictor (.joblib)", variant="secondary")
+                    btn_preset_student = gr.Button("🎓 Student Exam Predictor (.joblib)", variant="secondary")
+                with gr.Row():
+                    btn_preset_sentiment = gr.Button("📝 Sentiment Classifier (.joblib)", variant="secondary")
+                    btn_preset_risk = gr.Button("🩺 Medical Risk Classifier (.joblib)", variant="secondary")
+                    btn_preset_rest = gr.Button("🌐 Remote Fraud API (/predict)", variant="secondary")
 
                 with gr.Row():
                     with gr.Column(scale=1):
@@ -429,51 +518,24 @@ def build_app() -> gr.Blocks:
                             schema_out = gr.Code(label="Generated Output Schema (Pydantic)", language="json")
 
                 # Wire presets
-                btn_preset_sentiment.click(
-                    fn=load_preset_sentiment,
-                    outputs=[
-                        ingest_type,
-                        ingest_name,
-                        ingest_desc,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                        custom_contracts,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                    ],
-                )
-                btn_preset_risk.click(
-                    fn=load_preset_risk,
-                    outputs=[
-                        ingest_type,
-                        ingest_name,
-                        ingest_desc,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                        custom_contracts,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                    ],
-                )
-                btn_preset_rest.click(
-                    fn=load_preset_rest,
-                    outputs=[
-                        ingest_type,
-                        ingest_name,
-                        ingest_desc,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                        custom_contracts,
-                        sklearn_path,
-                        rest_url,
-                        rest_method,
-                    ],
-                )
+                preset_outputs = [
+                    ingest_type,
+                    ingest_name,
+                    ingest_desc,
+                    sklearn_path,
+                    rest_url,
+                    rest_method,
+                    custom_contracts,
+                    sklearn_path,
+                    rest_url,
+                    rest_method,
+                ]
+                btn_preset_house.click(fn=load_preset_house, outputs=preset_outputs)
+                btn_preset_loan.click(fn=load_preset_loan, outputs=preset_outputs)
+                btn_preset_student.click(fn=load_preset_student, outputs=preset_outputs)
+                btn_preset_sentiment.click(fn=load_preset_sentiment, outputs=preset_outputs)
+                btn_preset_risk.click(fn=load_preset_risk, outputs=preset_outputs)
+                btn_preset_rest.click(fn=load_preset_rest, outputs=preset_outputs)
 
                 btn_ingest.click(
                     fn=handle_model_ingestion,
@@ -503,9 +565,13 @@ def build_app() -> gr.Blocks:
 
                 gr.Markdown("#### 💡 Quick Demonstration Prompts (Click to Load & Select Model)")
                 with gr.Row():
-                    btn_prompt_sent = gr.Button("📝 1. Real Sentiment (.joblib)")
-                    btn_prompt_risk = gr.Button("📝 2. Real Risk Classifier (.joblib)")
-                    btn_prompt_rest = gr.Button("📝 3. Real Remote REST API (Fraud)")
+                    btn_prompt_house = gr.Button("🏡 House Price")
+                    btn_prompt_loan = gr.Button("💳 Loan Approval")
+                    btn_prompt_student = gr.Button("🎓 Student Exam")
+                with gr.Row():
+                    btn_prompt_sent = gr.Button("📝 Sentiment")
+                    btn_prompt_risk = gr.Button("🩺 Medical Risk")
+                    btn_prompt_rest = gr.Button("🌐 Remote Fraud API")
 
                 chatbot = gr.Chatbot(height=400, label="Conversation")
                 user_input = gr.Textbox(
@@ -522,6 +588,27 @@ def build_app() -> gr.Blocks:
                     tool_callout_out = gr.Code(label="Model Output Prediction", language="json")
 
                 # Wire sample prompt buttons
+                btn_prompt_house.click(
+                    fn=lambda: (
+                        "Use tool house_price_estimator to estimate valuation for sqft 2400, bedrooms 4, bathrooms 3, location_score 8.5",
+                        "house_price_estimator",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
+                btn_prompt_loan.click(
+                    fn=lambda: (
+                        "Use tool loan_approval_predictor to check eligibility for monthly_income 8500, credit_score 740, loan_amount 200000, debt_to_income 0.22",
+                        "loan_approval_predictor",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
+                btn_prompt_student.click(
+                    fn=lambda: (
+                        "Use tool student_performance_predictor to predict exam pass outcome for study_hours 25, attendance_rate 95, previous_grade 88",
+                        "student_performance_predictor",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
                 btn_prompt_sent.click(
                     fn=lambda: (
                         "Use tool real_sentiment_pipeline to classify text: Frequent application crashes and severe overheating while charging.",
@@ -562,8 +649,12 @@ def build_app() -> gr.Blocks:
                     outputs=[chatbot, tool_callout_info, tool_callout_in, tool_callout_out],
                 )
 
-                # Update tool dropdown choices whenever a new model is ingested
+                # Update tool dropdown choices whenever a new model is ingested or dashboard is refreshed
                 btn_ingest.click(
+                    fn=lambda: gr.update(choices=get_tool_choices()),
+                    outputs=[tool_selector],
+                )
+                btn_refresh_dash.click(
                     fn=lambda: gr.update(choices=get_tool_choices()),
                     outputs=[tool_selector],
                 )
