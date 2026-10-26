@@ -34,6 +34,13 @@ class AppConfig(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
 
+    # ── LLM Provider settings ────────────────────────────────────────────────
+    llm_provider: str = "mock"
+    llm_model: str = "llama3.1"
+    llm_base_url: str = "http://localhost:11434"
+    llm_api_key: str | None = None
+    llm_timeout: float = 60.0
+
 
 def setup_logging(config: AppConfig) -> None:
     """Configure root logger from *config*."""

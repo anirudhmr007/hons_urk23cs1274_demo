@@ -22,7 +22,10 @@ from typing import Any, Callable, Dict, List, Optional, Type
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from modular_agent.models.base import ModelAdapter, ModelContract
+from modular_agent.models.demo_model import DemoSentimentModel
 from modular_agent.models.registry import ToolEntry, ToolRegistry
+from modular_agent.models.rest_api_model import RestApiModelAdapter
+from modular_agent.models.sklearn_model import SklearnModelAdapter
 from modular_agent.schemas.tool_schemas import (
     SchemaGenerationError,
     generate_pydantic_schema,
@@ -33,7 +36,11 @@ logger = logging.getLogger(__name__)
 # ── Adapter type registry (module-level) ─────────────────────────────────────
 # Maps short names ("demo", "sklearn", …) to ModelAdapter subclasses.
 
-_ADAPTER_REGISTRY: Dict[str, Type[ModelAdapter]] = {}
+_ADAPTER_REGISTRY: Dict[str, Type[ModelAdapter]] = {
+    "demo": DemoSentimentModel,
+    "sklearn": SklearnModelAdapter,
+    "rest_api": RestApiModelAdapter,
+}
 
 
 def register_adapter_type(type_name: str, adapter_class: Type[ModelAdapter]) -> None:
