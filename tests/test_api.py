@@ -1,7 +1,4 @@
-"""Tests for the FastAPI application.
-
-Covers the ``/health`` and ``/tools`` endpoints.
-"""
+"""Tests for the FastAPI application endpoints."""
 
 from __future__ import annotations
 
@@ -24,6 +21,7 @@ class TestHealthEndpoint:
         assert data["app_name"] == "Modular-Agent"
         assert "version" in data
         assert "registered_tools" in data
+        assert data["registered_tools"] >= 1
 
 
 class TestToolsEndpoint:
@@ -40,3 +38,38 @@ class TestToolsEndpoint:
         assert "tool_names" in data
         assert isinstance(data["tool_names"], list)
 
+
+class TestAgentEndpoints:
+
+    def test_agent_chat_endpoint(self) -> None:
+        client = TestClient(app)
+        resp = client.post(
+            "/agent/chat",
+            json={
+                "query": "Classify sentiment: 'This is absolutely wonderful and great!'",
+                "session_id": "api_test_session",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "response" in data
+        assert data["tool_called"] is True
+        assert data["tool_name"] == "demo_sentiment_classifier"
+        assert "tool_output" in data
+        assert data["tool_output"]["label"] == "positive"
+
+    def test_agent_trace_endpoint(self) -> None:
+        client = TestClient(app)
+        resp = client.get("/agent/trace")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
+        assert len(data["events"]) > 0
+
+    def test_agent_reset_endpoint(self) -> None:
+        client = TestClient(app)
+        resp = client.post("/agent/reset", params={"session_id": "api_test_session"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"

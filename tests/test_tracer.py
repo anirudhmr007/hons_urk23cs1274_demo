@@ -67,3 +67,4 @@ def test_execution_tracer_clear() -> None:
     assert len(tracer.get_events()) == 1
     tracer.clear()
     assert len(tracer.get_events()) == 0
+

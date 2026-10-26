@@ -178,3 +178,4 @@ def test_agent_multi_turn_memory(agent_setup) -> None:
     # Turn 1 added: user + assistant (tool call) + tool result + assistant (synthesis) = 4
     # Turn 2 added: user + assistant (direct reply) = 2
     assert len(history) == 6
+

@@ -96,3 +96,4 @@ class ConversationMemory:
     def session_message_count(self, session_id: str) -> int:
         """Return the number of messages recorded for this session."""
         return len(self._sessions.get(session_id, []))
+

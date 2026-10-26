@@ -54,3 +54,4 @@ def test_reset_session() -> None:
     mem.reset_session("sess")
     assert mem.session_message_count("sess") == 0
     assert mem.get_messages("sess") == []
+

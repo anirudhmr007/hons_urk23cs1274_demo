@@ -35,6 +35,8 @@ models/artifacts/
 
 # ── Generated deployment packages ───────────────────────
 deployment_output/
+test_ui_deploy/
+out_deploy/
 
 # ── Test / Coverage ──────────────────────────────────────
 .coverage
