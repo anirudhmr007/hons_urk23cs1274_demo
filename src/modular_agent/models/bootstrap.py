@@ -119,3 +119,4 @@ def bootstrap_default_models(registry: ToolRegistry) -> None:
         )
         if res.success:
             logger.info("Bootstrap: Ingested 'demo_sentiment_classifier'.")
+

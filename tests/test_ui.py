@@ -64,7 +64,9 @@ def test_handle_agent_chat_and_reset() -> None:
         history=[],
         session_id="ui_test_sess",
     )
-    assert len(new_hist) == 1
+    assert len(new_hist) == 2
+    assert new_hist[0]["role"] == "user"
+    assert new_hist[1]["role"] == "assistant"
     assert "Tool Invoked" in info
     assert "positive" in t_out.lower() or "label" in t_out
 
@@ -74,7 +76,9 @@ def test_handle_agent_chat_and_reset() -> None:
         history=new_hist,
         session_id="ui_test_sess",
     )
-    assert len(new_hist2) == 2
+    assert len(new_hist2) == 4
+    assert new_hist2[2]["role"] == "user"
+    assert new_hist2[3]["role"] == "assistant"
     assert "No predictive tool" in info2
 
     # Reset

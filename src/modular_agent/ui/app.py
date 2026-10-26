@@ -143,13 +143,30 @@ def handle_model_ingestion(
 
 def handle_agent_chat(
     user_query: str,
-    history: List[List[Optional[str]]],
+    history: Any,
     session_id: str,
     target_tool: str = "🤖 Auto-Route (Agent Decides)",
-) -> Tuple[List[List[Optional[str]]], str, str, str]:
-    """Execute agent turn, update conversation, and return structured output."""
+) -> Tuple[List[Dict[str, str]], str, str, str]:
+    """Execute agent turn, update conversation in Gradio messages format, and return structured output."""
+    # Normalize existing history to list of message dicts (Gradio 6 format)
+    new_history: List[Dict[str, str]] = []
+    if history:
+        for item in history:
+            if isinstance(item, dict) and "role" in item and "content" in item:
+                content_val = item["content"]
+                if isinstance(content_val, list) and content_val and isinstance(content_val[0], dict) and "text" in content_val[0]:
+                    content_str = content_val[0]["text"]
+                else:
+                    content_str = str(content_val)
+                new_history.append({"role": item["role"], "content": content_str})
+            elif isinstance(item, (list, tuple)) and len(item) == 2:
+                if item[0]:
+                    new_history.append({"role": "user", "content": str(item[0])})
+                if item[1]:
+                    new_history.append({"role": "assistant", "content": str(item[1])})
+
     if not user_query.strip():
-        return history, "", "", ""
+        return new_history, "", "", ""
 
     sess = session_id.strip() if session_id.strip() else "default"
     selected_tool = None
@@ -162,9 +179,9 @@ def handle_agent_chat(
         target_tool=selected_tool,
     )
 
-    # Append to chat history
-    new_history = list(history or [])
-    new_history.append([user_query, result.response])
+    # Append user turn and assistant response in Gradio 6 message dictionary format
+    new_history.append({"role": "user", "content": user_query})
+    new_history.append({"role": "assistant", "content": result.response})
 
     # Format structured tool callout
     if result.tool_called:
