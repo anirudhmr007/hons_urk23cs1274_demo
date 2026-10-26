@@ -12,13 +12,19 @@ Modular-Agent is structured into three architectural stages:
 
 1. **Automated Model Ingestion, Schema Generation, and Tool Registration**:
    - `ModelAdapter` abstract interface establishing clear input/output contracts (`ModelContract`, `FieldContract`).
+   - Built-in support for 3 model classes:
+     - **Demonstration Sentiment Model** (`DemoSentimentModel`): Built-in text sentiment classifier doing real inference.
+     - **Scikit-learn Serialized Models** (`SklearnModelAdapter`): Loads `.joblib` / `.pkl` models and pipelines with numeric/text feature inputs and confidence estimation.
+     - **REST API Endpoints** (`RestApiModelAdapter`): Connects to remote or local HTTP model inference endpoints with payload mapping and HTTP error handling.
    - Dynamic Pydantic schema generation (`generate_pydantic_schema`) mapping declared contracts to runtime validation models and JSON schemas.
    - `IngestionEngine` that validates configurations, initializes adapters, runs automated loading/training, builds type-safe callable wrappers, and registers tools into `ToolRegistry`.
    - `ToolRegistry` managing cataloging, validation, error tracking, and lifecycle status.
-2. **LLM-Based Cognitive Orchestration, Tool Execution, and Conversational Memory** *(Phases 2 & 3)*:
-   - Provider abstraction (Ollama local LLM + hosted provider adapters).
-   - LangChain / LangGraph orchestration with bounded retries, argument validation, and execution tracing.
-   - Session-based conversation memory with tool call tracking and reset functionality.
+2. **LLM Provider Abstraction & Orchestration**:
+   - `BaseLLMProvider` decoupling model execution from LLM cognitive reasoning.
+   - **Local LLM**: `OllamaProvider` connecting to local Ollama instances (`llama3.1`, `qwen2.5`, etc.).
+   - **Hosted LLM**: `HostedOpenAIProvider` connecting to OpenAI, OpenRouter, Groq, vLLM, or other OpenAI-compatible endpoints with strict API key masking.
+   - **Mock Provider**: `MockLLMProvider` for deterministic testing and offline agent verification.
+   - Factory `create_llm_provider(config)` for externalized provider selection via `.env` or environment variables.
 3. **Automated Containerization and Deployment Artifact Generation** *(Phase 4)*:
    - Automated Dockerfile, docker-compose, and requirements generation for self-contained agent deployment.
 
