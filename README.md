@@ -25,6 +25,19 @@ Modular-Agent is structured into three architectural stages:
    - **Hosted LLM**: `HostedOpenAIProvider` connecting to OpenAI, OpenRouter, Groq, vLLM, or other OpenAI-compatible endpoints with strict API key masking.
    - **Mock Provider**: `MockLLMProvider` for deterministic testing and offline agent verification.
    - Factory `create_llm_provider(config)` for externalized provider selection via `.env` or environment variables.
+   - **Agent Orchestrator** (`AgentOrchestrator`):
+     - Translates natural-language requests into tool routing decisions.
+     - Validates tool input arguments using Pydantic before model execution.
+     - Performs real deterministic predictive model inference.
+     - Validates tool output against output schemas.
+     - Bounded retries for handling malformed arguments or tool execution exceptions.
+     - Avoids unnecessary tool invocations for regular conversational queries.
+   - **Conversational Memory** (`ConversationMemory`):
+     - Multi-turn, session-isolated state recording user messages, assistant decisions, tool parameters, and real predictive results.
+     - Session reset and context replay capabilities.
+   - **Execution Tracing** (`ExecutionTracer`):
+     - Logs real timestamps, step statuses (`SUCCESS`, `WARNING`, `ERROR`), and millisecond-level step durations.
+     - Automatic secret and API key masking.
 3. **Automated Containerization and Deployment Artifact Generation** *(Phase 4)*:
    - Automated Dockerfile, docker-compose, and requirements generation for self-contained agent deployment.
 
