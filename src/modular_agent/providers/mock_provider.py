@@ -99,6 +99,50 @@ class MockLLMProvider(BaseLLMProvider):
                     finish_reason="tool_calls",
                 )
 
+        # If user asks for transaction evaluation and a transaction/remote tool is present
+        if tools and any("transaction" in user_text or "remote" in user_text or "fraud" in user_text or "tx-" in user_text for _ in [1]):
+            matching_tool = next(
+                (t for t in tools if "transaction" in t.name or "remote" in t.name or "fraud" in t.name or "rest" in t.name),
+                None,
+            )
+            if matching_tool:
+                call_id = f"call_{uuid.uuid4().hex[:8]}"
+                return LLMResponse(
+                    content=None,
+                    tool_calls=[
+                        ToolCall(
+                            id=call_id,
+                            name=matching_tool.name,
+                            arguments={
+                                "transaction_id": "TX-8041",
+                                "amount": 15000.0,
+                                "user_country": "DE",
+                            },
+                        )
+                    ],
+                    finish_reason="tool_calls",
+                )
+
+        # If user asks for risk evaluation / numerical features
+        if tools and any("risk" in user_text or "feature" in user_text or "diagnos" in user_text for _ in [1]):
+            matching_tool = next(
+                (t for t in tools if "risk" in t.name or "feature" in t.name),
+                None,
+            )
+            if matching_tool:
+                call_id = f"call_{uuid.uuid4().hex[:8]}"
+                return LLMResponse(
+                    content=None,
+                    tool_calls=[
+                        ToolCall(
+                            id=call_id,
+                            name=matching_tool.name,
+                            arguments={"features": [17.99, 10.38, 122.8, 1001.0]},
+                        )
+                    ],
+                    finish_reason="tool_calls",
+                )
+
         # Standard conversation reply
         return LLMResponse(
             content=f"I processed your message: '{last_message.content}' without calling any tool.",

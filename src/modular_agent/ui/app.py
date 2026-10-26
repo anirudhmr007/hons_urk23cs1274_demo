@@ -19,9 +19,10 @@ from modular_agent.agent import AgentOrchestrator, ConversationMemory, Execution
 from modular_agent.config import AppConfig
 from modular_agent.deployment import DeploymentConfig, DeploymentGenerator
 from modular_agent.ingestion.engine import IngestionEngine, ModelConfig
+from modular_agent.models.bootstrap import bootstrap_default_models
 from modular_agent.models.demo_model import DemoSentimentModel
 from modular_agent.models.registry import ToolRegistry
-from modular_agent.models.rest_api_model import RestApiModelAdapter
+from modular_agent.models.rest_api_model import RestApiModelAdapter, default_fraud_evaluator
 from modular_agent.models.sklearn_model import SklearnModelAdapter
 from modular_agent.providers import create_llm_provider
 
@@ -42,39 +43,13 @@ ingestion_engine = IngestionEngine(registry)
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 deployment_generator = DeploymentGenerator(base_project_dir=project_root)
 
-# Pre-ingest production models if available, otherwise fallback to demo
-real_sentiment_file = project_root / "models" / "artifacts" / "real_sentiment_pipeline.joblib"
-real_risk_file = project_root / "models" / "artifacts" / "real_risk_classifier.joblib"
+# Pre-ingest all available models (scikit-learn, REST microservice, and demo)
+bootstrap_default_models(registry)
 
-if real_sentiment_file.exists():
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="sklearn",
-            name="real_sentiment_pipeline",
-            description="Production scikit-learn TF-IDF + Logistic Regression text sentiment classifier.",
-            parameters={"model_path": str(real_sentiment_file)},
-        )
-    )
 
-if real_risk_file.exists():
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="sklearn",
-            name="real_risk_classifier",
-            description="Production Random Forest classifier evaluating risk diagnostic metrics.",
-            parameters={"model_path": str(real_risk_file)},
-        )
-    )
-
-# Also ensure demo model is available for tests
-if not registry.has("demo_sentiment_classifier"):
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="demo",
-            name="demo_sentiment_classifier",
-            description="Built-in demonstration binary sentiment classifier (TF-IDF + LogisticRegression).",
-        )
-    )
+def get_tool_choices() -> List[str]:
+    """Return dropdown choices for ingested model selector."""
+    return ["🤖 Auto-Route (Agent Decides)"] + [t.name for t in registry.list_tools()]
 
 
 # ── Backend Helper Functions ─────────────────────────────────────────────────
@@ -141,6 +116,7 @@ def handle_model_ingestion(
             return "❌ Error: Please provide a valid REST endpoint URL.", "{}", "{}"
         params["endpoint_url"] = rest_url.strip()
         params["http_method"] = rest_method
+        params["fallback_handler"] = default_fraud_evaluator
         if input_contract:
             params["input_contract"] = input_contract
         if output_contract:
@@ -169,13 +145,22 @@ def handle_agent_chat(
     user_query: str,
     history: List[List[Optional[str]]],
     session_id: str,
+    target_tool: str = "🤖 Auto-Route (Agent Decides)",
 ) -> Tuple[List[List[Optional[str]]], str, str, str]:
     """Execute agent turn, update conversation, and return structured output."""
     if not user_query.strip():
         return history, "", "", ""
 
     sess = session_id.strip() if session_id.strip() else "default"
-    result = orchestrator.run(user_query=user_query, session_id=sess)
+    selected_tool = None
+    if target_tool and not target_tool.startswith("🤖"):
+        selected_tool = target_tool.split(" ")[0].strip()
+
+    result = orchestrator.run(
+        user_query=user_query,
+        session_id=sess,
+        target_tool=selected_tool,
+    )
 
     # Append to chat history
     new_history = list(history or [])
@@ -254,6 +239,69 @@ def handle_generate_deployment(
         return f"❌ Failed to generate deployment package: {exc}", "", "", ""
 
 
+def load_preset_sentiment():
+    path = str(project_root / "models" / "artifacts" / "real_sentiment_pipeline.joblib")
+    return (
+        "sklearn",
+        "real_sentiment_pipeline",
+        "Production scikit-learn TF-IDF + Logistic Regression text sentiment classifier.",
+        path,
+        "",
+        "POST",
+        "",
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(visible=False),
+    )
+
+
+def load_preset_risk():
+    path = str(project_root / "models" / "artifacts" / "real_risk_classifier.joblib")
+    contract = json.dumps({
+        "input": {"features": {"type": "list", "required": True, "description": "Array of 4 diagnostic floats"}},
+        "output": {"prediction": {"type": "str", "required": True}, "risk_score": {"type": "float", "required": True}, "model_type": {"type": "str", "required": True}}
+    }, indent=2)
+    return (
+        "sklearn",
+        "real_risk_classifier",
+        "Production Random Forest classifier evaluating risk diagnostic metrics.",
+        path,
+        "",
+        "POST",
+        contract,
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(visible=False),
+    )
+
+
+def load_preset_rest():
+    contract = json.dumps({
+        "input": {
+            "transaction_id": {"type": "str", "required": False, "default": "TX-8041"},
+            "amount": {"type": "float", "required": True},
+            "country": {"type": "str", "required": False, "default": "US"}
+        },
+        "output": {
+            "prediction": {"type": "str", "required": True},
+            "risk_score": {"type": "float", "required": True},
+            "model_type": {"type": "str", "required": True}
+        }
+    }, indent=2)
+    return (
+        "rest_api",
+        "remote_transaction_evaluator",
+        "Remote REST API fraud / transaction risk assessment microservice.",
+        "",
+        "http://127.0.0.1:8001/predict",
+        "POST",
+        contract,
+        gr.update(visible=False),
+        gr.update(visible=True),
+        gr.update(visible=True),
+    )
+
+
 # ── Gradio Layout Definition ─────────────────────────────────────────────────
 
 def build_app() -> gr.Blocks:
@@ -291,6 +339,12 @@ def build_app() -> gr.Blocks:
             # ── 2. Model Ingestion ───────────────────────────────────────────
             with gr.TabItem("📥 Model Ingestion"):
                 gr.Markdown("### Ingest a Predictive Model into the Tool Registry")
+                gr.Markdown("#### ⚡ Quick Ingest Presets (Click to Auto-Populate & Inspect Contracts)")
+                with gr.Row():
+                    btn_preset_sentiment = gr.Button("⚡ Preset: Real Sentiment Pipeline (.joblib)", variant="secondary")
+                    btn_preset_risk = gr.Button("⚡ Preset: Real Risk Classifier (.joblib)", variant="secondary")
+                    btn_preset_rest = gr.Button("⚡ Preset: Real Remote REST API (Fraud)", variant="secondary")
+
                 with gr.Row():
                     with gr.Column(scale=1):
                         ingest_type = gr.Radio(
@@ -357,6 +411,53 @@ def build_app() -> gr.Blocks:
                             schema_in = gr.Code(label="Generated Input Schema (Pydantic)", language="json")
                             schema_out = gr.Code(label="Generated Output Schema (Pydantic)", language="json")
 
+                # Wire presets
+                btn_preset_sentiment.click(
+                    fn=load_preset_sentiment,
+                    outputs=[
+                        ingest_type,
+                        ingest_name,
+                        ingest_desc,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                        custom_contracts,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                    ],
+                )
+                btn_preset_risk.click(
+                    fn=load_preset_risk,
+                    outputs=[
+                        ingest_type,
+                        ingest_name,
+                        ingest_desc,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                        custom_contracts,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                    ],
+                )
+                btn_preset_rest.click(
+                    fn=load_preset_rest,
+                    outputs=[
+                        ingest_type,
+                        ingest_name,
+                        ingest_desc,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                        custom_contracts,
+                        sklearn_path,
+                        rest_url,
+                        rest_method,
+                    ],
+                )
+
                 btn_ingest.click(
                     fn=handle_model_ingestion,
                     inputs=[
@@ -374,8 +475,20 @@ def build_app() -> gr.Blocks:
             # ── 3. Agent Playground ──────────────────────────────────────────
             with gr.TabItem("💬 Agent Playground"):
                 with gr.Row():
-                    session_box = gr.Textbox(value="session_1", label="Session ID", scale=3)
+                    session_box = gr.Textbox(value="session_1", label="Session ID", scale=2)
+                    tool_selector = gr.Dropdown(
+                        choices=get_tool_choices(),
+                        value="🤖 Auto-Route (Agent Decides)",
+                        label="🎯 Target Ingested Model",
+                        scale=3,
+                    )
                     btn_reset = gr.Button("🗑️ Reset History", variant="secondary", scale=1)
+
+                gr.Markdown("#### 💡 Quick Demonstration Prompts (Click to Load & Select Model)")
+                with gr.Row():
+                    btn_prompt_sent = gr.Button("📝 1. Real Sentiment (.joblib)")
+                    btn_prompt_risk = gr.Button("📝 2. Real Risk Classifier (.joblib)")
+                    btn_prompt_rest = gr.Button("📝 3. Real Remote REST API (Fraud)")
 
                 chatbot = gr.Chatbot(height=400, label="Conversation")
                 user_input = gr.Textbox(
@@ -391,15 +504,38 @@ def build_app() -> gr.Blocks:
                     tool_callout_in = gr.Code(label="Model Input Arguments", language="json")
                     tool_callout_out = gr.Code(label="Model Output Prediction", language="json")
 
+                # Wire sample prompt buttons
+                btn_prompt_sent.click(
+                    fn=lambda: (
+                        "Use tool real_sentiment_pipeline to classify text: Frequent application crashes and severe overheating while charging.",
+                        "real_sentiment_pipeline",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
+                btn_prompt_risk.click(
+                    fn=lambda: (
+                        "Use tool real_risk_classifier to evaluate features: [17.99, 10.38, 122.8, 1001.0]",
+                        "real_risk_classifier",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
+                btn_prompt_rest.click(
+                    fn=lambda: (
+                        "Use tool remote_transaction_evaluator to evaluate transaction ID 'TX-8041' with amount 15000.00 and country 'DE'.",
+                        "remote_transaction_evaluator",
+                    ),
+                    outputs=[user_input, tool_selector],
+                )
+
                 btn_send.click(
                     fn=handle_agent_chat,
-                    inputs=[user_input, chatbot, session_box],
+                    inputs=[user_input, chatbot, session_box, tool_selector],
                     outputs=[chatbot, tool_callout_info, tool_callout_in, tool_callout_out],
                 ).then(lambda: "", outputs=[user_input])
 
                 user_input.submit(
                     fn=handle_agent_chat,
-                    inputs=[user_input, chatbot, session_box],
+                    inputs=[user_input, chatbot, session_box, tool_selector],
                     outputs=[chatbot, tool_callout_info, tool_callout_in, tool_callout_out],
                 ).then(lambda: "", outputs=[user_input])
 
@@ -407,6 +543,12 @@ def build_app() -> gr.Blocks:
                     fn=handle_reset_chat,
                     inputs=[session_box],
                     outputs=[chatbot, tool_callout_info, tool_callout_in, tool_callout_out],
+                )
+
+                # Update tool dropdown choices whenever a new model is ingested
+                btn_ingest.click(
+                    fn=lambda: gr.update(choices=get_tool_choices()),
+                    outputs=[tool_selector],
                 )
 
             # ── 4. Execution Trace ───────────────────────────────────────────

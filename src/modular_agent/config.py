@@ -7,8 +7,12 @@ falling back to a ``.env`` file when one exists in the working directory.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_ENV_PATH = _PROJECT_ROOT / ".env"
 
 
 class AppConfig(BaseSettings):
@@ -23,7 +27,7 @@ class AppConfig(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_PATH) if _ENV_PATH.exists() else ".env",
         env_prefix="MA_",
         extra="ignore",
     )

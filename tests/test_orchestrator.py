@@ -179,3 +179,34 @@ def test_agent_multi_turn_memory(agent_setup) -> None:
     # Turn 2 added: user + assistant (direct reply) = 2
     assert len(history) == 6
 
+
+def test_agent_explicit_target_tool(agent_setup) -> None:
+    orchestrator, provider, registry, memory, tracer = agent_setup
+
+    # Explicit target tool execution without relying on LLM routing
+    result = orchestrator.run(
+        user_query="The screen is flickering and battery drains fast.",
+        session_id="target_tool_session",
+        target_tool="sentiment_tool",
+    )
+    assert result.tool_called is True
+    assert result.tool_name == "sentiment_tool"
+    assert result.tool_output is not None
+
+
+def test_agent_bootstrap_models() -> None:
+    from modular_agent.models.bootstrap import bootstrap_default_models
+    fresh_registry = ToolRegistry()
+    bootstrap_default_models(fresh_registry)
+
+    # Must contain at least the demo sentiment classifier and remote transaction evaluator
+    assert fresh_registry.has("demo_sentiment_classifier")
+    assert fresh_registry.has("remote_transaction_evaluator")
+
+    # Ingested models must be executable
+    remote_tool = fresh_registry.get("remote_transaction_evaluator")
+    res = remote_tool.callable(transaction_id="TX-TEST", amount=5000.0, user_country="DE")
+    assert res["prediction"] in ("approved", "flagged_for_review", "declined")
+    assert res["model_type"] == "remote_rest_api"
+
+

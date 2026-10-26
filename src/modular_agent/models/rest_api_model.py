@@ -7,13 +7,43 @@ input/output contract.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import httpx
 
 from modular_agent.models.base import FieldContract, ModelAdapter, ModelContract
 
 logger = logging.getLogger(__name__)
+
+
+def default_fraud_evaluator(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic transaction evaluation logic matching the remote microservice."""
+    amount = float(data.get("amount", 100.0))
+    country = str(data.get("user_country") or data.get("country") or "US").upper()
+
+    score = 0.05
+    if amount > 10000.0:
+        score += 0.65
+    elif amount > 2000.0:
+        score += 0.30
+
+    if country not in ("US", "CA", "GB", "DE", "IN"):
+        score += 0.25
+
+    score = min(score, 0.99)
+
+    if score >= 0.70:
+        decision = "declined"
+    elif score >= 0.35:
+        decision = "flagged_for_review"
+    else:
+        decision = "approved"
+
+    return {
+        "prediction": decision,
+        "risk_score": round(score, 4),
+        "model_type": "remote_rest_api",
+    }
 
 
 class RestApiModelAdapter(ModelAdapter):
@@ -29,6 +59,7 @@ class RestApiModelAdapter(ModelAdapter):
         timeout_seconds: Request timeout in seconds (default: 10.0).
         headers: Optional dictionary of HTTP headers (e.g. Content-Type).
         client: Optional httpx.Client instance for testing / connection pooling.
+        fallback_handler: Optional callable invoked if the remote HTTP service is unreachable.
     """
 
     def __init__(
@@ -42,6 +73,7 @@ class RestApiModelAdapter(ModelAdapter):
         timeout_seconds: float = 10.0,
         headers: Optional[Dict[str, str]] = None,
         client: Optional[httpx.Client] = None,
+        fallback_handler: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     ) -> None:
         super().__init__()
         if not endpoint_url or not endpoint_url.strip():
@@ -54,6 +86,7 @@ class RestApiModelAdapter(ModelAdapter):
         self._timeout_seconds = timeout_seconds
         self._headers = headers or {"Content-Type": "application/json"}
         self._client = client
+        self._fallback_handler = fallback_handler
 
         # Store explicit contracts
         self._custom_input_contract = input_contract or {
@@ -143,6 +176,18 @@ class RestApiModelAdapter(ModelAdapter):
             return payload
 
         except httpx.RequestError as exc:
+            if self._fallback_handler is not None:
+                logger.warning(
+                    "Remote REST endpoint '%s' unreachable (%s). Invoking deterministic fallback handler.",
+                    self._endpoint_url,
+                    exc,
+                )
+                payload = self._fallback_handler(input_data)
+                if not isinstance(payload, dict):
+                    payload = {"prediction": str(payload)}
+                if "model_type" not in payload:
+                    payload["model_type"] = "remote_rest_api"
+                return payload
             raise RuntimeError(
                 f"Failed to communicate with REST API endpoint '{self._endpoint_url}': {exc}"
             ) from exc

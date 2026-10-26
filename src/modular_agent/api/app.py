@@ -46,40 +46,9 @@ orchestrator = AgentOrchestrator(
 )
 ingestion_engine = IngestionEngine(registry)
 
-from pathlib import Path
-project_root = Path(__file__).resolve().parent.parent.parent.parent
-real_sentiment_file = project_root / "models" / "artifacts" / "real_sentiment_pipeline.joblib"
-real_risk_file = project_root / "models" / "artifacts" / "real_risk_classifier.joblib"
+from modular_agent.models.bootstrap import bootstrap_default_models
 
-if real_sentiment_file.exists():
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="sklearn",
-            name="real_sentiment_pipeline",
-            description="Production scikit-learn TF-IDF + Logistic Regression text sentiment classifier.",
-            parameters={"model_path": str(real_sentiment_file)},
-        )
-    )
-
-if real_risk_file.exists():
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="sklearn",
-            name="real_risk_classifier",
-            description="Production Random Forest classifier evaluating risk diagnostic metrics.",
-            parameters={"model_path": str(real_risk_file)},
-        )
-    )
-
-# Ingest demonstration model as fallback
-if not registry.has("demo_sentiment_classifier"):
-    ingestion_engine.ingest(
-        ModelConfig(
-            model_type="demo",
-            name="demo_sentiment_classifier",
-            description="Built-in demonstration binary sentiment classifier (TF-IDF + LogisticRegression).",
-        )
-    )
+bootstrap_default_models(registry)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -87,6 +56,7 @@ if not registry.has("demo_sentiment_classifier"):
 class AgentChatRequest(BaseModel):
     query: str = Field(..., description="Natural language request for the agent.")
     session_id: str = Field(default="default", description="Conversation session ID.")
+    target_tool: Optional[str] = Field(default=None, description="Optional target tool name to invoke.")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -122,6 +92,7 @@ async def chat(request: AgentChatRequest) -> dict:
     result = orchestrator.run(
         user_query=request.query,
         session_id=request.session_id,
+        target_tool=request.target_tool,
     )
     return result.model_dump()
 

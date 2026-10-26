@@ -8,7 +8,8 @@ from modular_agent.models.registry import (
     ToolNotFoundError,
     ToolRegistry,
 )
-from modular_agent.models.rest_api_model import RestApiModelAdapter
+from modular_agent.models.bootstrap import bootstrap_default_models
+from modular_agent.models.rest_api_model import RestApiModelAdapter, default_fraud_evaluator
 from modular_agent.models.sklearn_model import SklearnModelAdapter
 
 __all__ = [
@@ -18,6 +19,8 @@ __all__ = [
     "DemoSentimentModel",
     "SklearnModelAdapter",
     "RestApiModelAdapter",
+    "default_fraud_evaluator",
+    "bootstrap_default_models",
     "ToolRegistry",
     "ToolEntry",
     "DuplicateToolError",

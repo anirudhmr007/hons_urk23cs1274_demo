@@ -7,6 +7,7 @@ Run with:
     python scripts/run_rest_service.py
 """
 
+from typing import Optional
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 import uvicorn
@@ -19,9 +20,10 @@ app = FastAPI(
 
 
 class TransactionRequest(BaseModel):
-    transaction_id: str = Field(..., description="Unique transaction ID to evaluate.")
-    amount: float = Field(..., description="Transaction monetary amount.")
-    user_country: str = Field(default="US", description="Country code of origin.")
+    transaction_id: str = Field(default="TX-DEFAULT", description="Unique transaction ID to evaluate.")
+    amount: float = Field(default=100.0, description="Transaction monetary amount.")
+    user_country: Optional[str] = Field(default=None, description="Country code of origin.")
+    country: Optional[str] = Field(default=None, description="Alias for user_country.")
 
 
 class PredictionResponse(BaseModel):
@@ -30,17 +32,18 @@ class PredictionResponse(BaseModel):
     model_type: str = Field(default="remote_rest_api", description="Service runtime format.")
 
 
-@app.post("/predict", response_model=PredictionResponse)
-def evaluate_transaction(req: TransactionRequest):
-    """Real deterministic fraud / risk assessment algorithm."""
-    # Deterministic risk evaluation logic
+def evaluate_transaction_logic(data: dict) -> dict:
+    """Core deterministic fraud / risk assessment algorithm."""
+    amount = float(data.get("amount", 100.0))
+    country = str(data.get("user_country") or data.get("country") or "US").upper()
+
     score = 0.05
-    if req.amount > 10000.0:
+    if amount > 10000.0:
         score += 0.65
-    elif req.amount > 2000.0:
+    elif amount > 2000.0:
         score += 0.30
 
-    if req.user_country not in ("US", "CA", "GB", "DE", "IN"):
+    if country not in ("US", "CA", "GB", "DE", "IN"):
         score += 0.25
 
     score = min(score, 0.99)
@@ -52,11 +55,18 @@ def evaluate_transaction(req: TransactionRequest):
     else:
         decision = "approved"
 
-    return PredictionResponse(
-        prediction=decision,
-        risk_score=round(score, 4),
-        model_type="remote_rest_api",
-    )
+    return {
+        "prediction": decision,
+        "risk_score": round(score, 4),
+        "model_type": "remote_rest_api",
+    }
+
+
+@app.post("/predict", response_model=PredictionResponse)
+def evaluate_transaction(req: TransactionRequest):
+    """Real deterministic fraud / risk assessment algorithm."""
+    res = evaluate_transaction_logic(req.model_dump())
+    return PredictionResponse(**res)
 
 
 @app.get("/health")
