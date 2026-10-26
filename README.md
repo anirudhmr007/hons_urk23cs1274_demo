@@ -48,8 +48,18 @@ flowchart TD
 - **Data Validation & Schemas**: Pydantic `2.9.2`, Pydantic Settings `2.5.2`
 - **Machine Learning**: Scikit-learn `1.5.2`, NumPy `2.5.4`, Joblib `1.6.0`
 - **HTTP Client**: HTTPX `0.27.2`
-- **Test Framework**: Pytest `8.3.3` (108 unit & integration tests)
+- **Test Framework**: Pytest `8.3.3` (110 unit & integration tests, 100% passing)
 - **Containerization**: Docker, Docker Compose
+
+---
+
+## Quick Reference: Presentation & Review Guide
+For academic evaluation, project defense, and viva panels, a comprehensive guide is available in [`PRESENTATION_GUIDE.md`](./PRESENTATION_GUIDE.md). It details:
+- **30-Second Elevator Pitch** & the intuitive "Manager vs. Calculator" analogy.
+- **Academic Rigor**: Problem statement, research objectives, and competitive matrix vs. LangChain / CrewAI.
+- **Mermaid Architecture Diagrams**: Explaining decoupled reasoning from deterministic ML inference.
+- **Step-by-Step Viva Script**: Walkthrough across all 5 UI tabs with real Scikit-Learn models.
+- **Top 10 Toughest Viva / Panel Questions**: Pre-formulated answers on latency, security, and schema validation.
 
 ---
 
