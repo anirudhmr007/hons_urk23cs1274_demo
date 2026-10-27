@@ -24,6 +24,8 @@ build/
 # ── OS artifacts ─────────────────────────────────────────
 .DS_Store
 Thumbs.db
+~$*.pptx
+~$*.docx
 
 # ── Model artifacts ──────────────────────────────────────
 *.pkl

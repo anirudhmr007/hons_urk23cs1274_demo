@@ -329,7 +329,18 @@ def create_deck(output_path: Path):
         top_pos += 1.05
 
     # ══════════════════════════════════════════════════════════════════════════════
-    # SLIDE 5: PROPOSED ARCHITECTURE OVERVIEW
+    # SLIDE 5: PROPOSED ARCHITECTURE (HIGH-RESOLUTION VISUAL DIAGRAM)
+    # ══════════════════════════════════════════════════════════════════════════════
+    s5_img = prs.slides.add_slide(blank_layout)
+    set_slide_background(s5_img)
+    add_header(s5_img, "Proposed Architecture: Complete System Flow Diagram", "SYSTEM ARCHITECTURE")
+
+    img_file = Path("C:/Users/LENOVO/.gemini/antigravity/scratch/modular_agent/architecture_diagram.png")
+    if img_file.exists():
+        s5_img.shapes.add_picture(str(img_file), Inches(0.8), Inches(1.45), Inches(11.733), Inches(5.65))
+
+    # ══════════════════════════════════════════════════════════════════════════════
+    # SLIDE 6: PROPOSED ARCHITECTURE OVERVIEW (THE THREE DECOUPLED STAGES)
     # ══════════════════════════════════════════════════════════════════════════════
     s5 = prs.slides.add_slide(blank_layout)
     set_slide_background(s5)
@@ -793,10 +804,16 @@ def create_deck(output_path: Path):
 
     # Save presentation
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output_path))
-    print(f"[OK] Presentation successfully saved to: {output_path}")
+    try:
+        prs.save(str(output_path))
+        print(f"[OK] Presentation successfully saved to: {output_path}")
+    except PermissionError:
+        alt_path = output_path.parent / f"{output_path.stem}_with_diagram{output_path.suffix}"
+        prs.save(str(alt_path))
+        print(f"[OK] Primary file was locked in PowerPoint. Saved with embedded diagram to: {alt_path}")
 
 
 if __name__ == "__main__":
     out_file = Path("C:/Users/LENOVO/.gemini/antigravity/scratch/modular_agent/Modular_Agent_Presentation.pptx")
     create_deck(out_file)
+
