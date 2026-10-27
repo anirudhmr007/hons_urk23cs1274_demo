@@ -257,3 +257,4 @@ if __name__ == "__main__":
     png_path = base_dir / "architecture_diagram.png"
     jpeg_path = base_dir / "architecture_diagram.jpeg"
     generate_diagram(png_path, jpeg_path)
+
